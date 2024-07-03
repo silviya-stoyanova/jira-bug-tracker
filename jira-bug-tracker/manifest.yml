@@ -1,0 +1,23 @@
+modules:
+  jira:issuePanel:
+    - key: jira-bug-tracker-panel
+      resource: main
+      resolver:
+        function: resolver
+      viewportSize: medium
+      title: jira-bug-tracker
+      icon: https://developer.atlassian.com/platform/forge/images/issue-panel-icon.svg
+  function:
+    - key: resolver
+      handler: index.handler
+resources:
+  - key: main
+    path: static/build
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+app:
+  runtime:
+    name: nodejs18.x
+  id: ari:cloud:ecosystem::app/d71bd3a3-65d9-41d7-95f4-5cfbff05e6ab
