@@ -1,27 +1,35 @@
-import Resolver from "@forge/resolver";
 import api, { route } from "@forge/api";
+import Resolver from "@forge/resolver";
 const resolver = new Resolver();
 
-resolver.define("fetchLabels", async (req) => {
-  const key = req.context.extension.issue.key;
+resolver.define("getLinkedBugs", async (req) => {
+  const issueKey = req.context.extension.issue.key;
+  const response = await api
+    .asApp()
+    .requestJira(route`/rest/api/3/issue/${issueKey}?fields=issuelinks`);
+  const data = await response.json();
 
-  const res = await api
-    .asUser()
-    .requestJira(route`/rest/api/3/issue/${key}?fields=labels`);
+  const linkedIssues = data.fields.issuelinks.map((link) =>
+    link.outwardIssue ? link.outwardIssue.key : link.inwardIssue.key
+  );
 
-  const data = await res.json();
+  console.log(linkedIssues);
 
-  const label = data.fields.labels;
-  if (label == undefined) {
-    console.warn(`${key}: Failed to find labels`);
-    return [];
+  const linkedBugs = [];
+
+  for (const key of linkedIssues) {
+    const linkedBugResponse = await api
+      .asApp()
+      .requestJira(
+        route`/rest/api/3/issue/${key}?fields=summary,created,assignee,status,priority`
+      );
+    const linkedBugData = await linkedBugResponse.json();
+
+    linkedBugs.push(linkedBugData);
   }
 
-  return label;
-});
-
-resolver.define("getIssueKey", ({ payload }) => {
-  return payload.issueKey;
+  console.log(linkedBugs);
+  return linkedBugs;
 });
 
 export const handler = resolver.getDefinitions();
