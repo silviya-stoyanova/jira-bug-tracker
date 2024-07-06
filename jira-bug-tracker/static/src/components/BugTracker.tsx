@@ -1,44 +1,63 @@
 import React, { useEffect, useState } from "react";
+
 import { events, invoke } from "@forge/bridge";
-import { priorityOrder } from "./utils/constants";
+import { PriorityOrder } from "../utils/constants";
 
-// TODO: convert to TS
-const App = () => {
-  const [isLoading, setIsLoading] = useState([]);
-  const [linkedBugs, setLinkedBugs] = useState([]);
-  const [sortColumn, setSortColumn] = useState(null);
-  const [sortOrder, setSortOrder] = useState("asc");
-  const [error, setError] = useState("");
+interface Bug {
+  id: string;
+  key: string;
+  fields: {
+    summary: string;
+    created: string;
+    assignee: {
+      displayName: string;
+    } | null;
+    status: {
+      name: string;
+    };
+    priority: {
+      name: string;
+    };
+  };
+  issueLinkId: string;
+}
 
-  const handleFetchSuccess = (data) => {
+interface DeleteIssueLinkResponse {
+  size?: number;
+  timeout?: number;
+  success?: boolean;
+  message?: string;
+}
+
+const BugTracker: React.FC = () => {
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [linkedBugs, setLinkedBugs] = useState<Bug[]>([]);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [error, setError] = useState<string>("");
+
+  const handleFetchSuccess = (data: Bug[]): void => {
     setLinkedBugs(data);
     setIsLoading(false);
-    console.log(data);
   };
 
-  const handleFetchError = () => {
-    console.error("Failed to get related bugs");
+  const handleFetchError = (error: Error): void => {
+    console.error("Failed to get related bugs", error);
     setIsLoading(false);
+  };
+
+  const fetchedBugs = async (): Promise<Bug[]> => {
+    return await invoke("getLinkedBugs");
   };
 
   useEffect(() => {
-    const fetchedBugs = async () => invoke("getLinkedBugs");
     fetchedBugs().then(handleFetchSuccess).catch(handleFetchError);
-
-    const subscribeForIssueChangedEvent = () =>
-      events.on("JIRA_ISSUE_CHANGED", () => {
-        fetchedBugs().then(handleFetchSuccess).catch(handleFetchError);
-      });
-
-    const subscription = subscribeForIssueChangedEvent();
-
-    return () => {
-      subscription.then((subscription) => subscription.unsubscribe());
-    };
   }, []);
 
-  const getColumnValue = (bug, column) => {
+  const getColumnValue = (bug: Bug, column: string) => {
     switch (column) {
+      case "key":
+        return bug.key;
       case "summary":
         return bug.fields.summary;
       case "created":
@@ -50,13 +69,15 @@ const App = () => {
       case "status":
         return bug.fields.status.name;
       case "priority":
-        return priorityOrder[bug.fields.priority.name];
+        const priorityOrder =
+          PriorityOrder[bug.fields.priority.name as keyof typeof PriorityOrder];
+        return priorityOrder;
       default:
         return "";
     }
   };
 
-  const handleSort = (column) => {
+  const handleSort = (column: string) => {
     const order = sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
     const sortedBugs = [...linkedBugs].sort((a, b) => {
       const aValue = getColumnValue(a, column);
@@ -70,11 +91,13 @@ const App = () => {
     setLinkedBugs(sortedBugs);
   };
 
-  const deleteLink = async (issueLinkId) => {
+  const deleteLink = async (issueLinkId: string) => {
     try {
-      const res = await invoke("deleteIssueLink", { issueLinkId });
+      const res: DeleteIssueLinkResponse = await invoke("deleteIssueLink", {
+        issueLinkId,
+      });
 
-      if (res.success) {
+      if (!res.message) {
         setLinkedBugs(
           linkedBugs.filter((bug) => bug.issueLinkId !== issueLinkId)
         );
@@ -109,7 +132,7 @@ const App = () => {
             </thead>
             <tbody>
               {linkedBugs.map((bug) => (
-                <tr key={bug.id}>
+                <tr key={bug.issueLinkId}>
                   <td>{`${bug.key}`}</td>
                   <td>{`${bug.fields.summary}`}</td>
                   <td>{new Date(bug.fields.created).toLocaleDateString()}</td>
@@ -133,4 +156,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default BugTracker;
