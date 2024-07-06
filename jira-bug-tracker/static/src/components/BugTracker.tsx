@@ -77,14 +77,28 @@ const BugTracker: React.FC = () => {
     }
   };
 
+  const compareIssueKeys = (keyA: string, keyB: string): number => {
+    const numberA = parseInt(keyA.split("-")[1]);
+    const numberB = parseInt(keyB.split("-")[1]);
+
+    return numberA - numberB;
+  };
+
   const handleSort = (column: string) => {
     const order = sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
     const sortedBugs = [...linkedBugs].sort((a, b) => {
       const aValue = getColumnValue(a, column);
       const bValue = getColumnValue(b, column);
-      if (aValue < bValue) return order === "asc" ? -1 : 1;
-      if (aValue > bValue) return order === "asc" ? 1 : -1;
-      return 0;
+
+      if (column === "key") {
+        return order === "asc"
+          ? compareIssueKeys(aValue as string, bValue as string)
+          : compareIssueKeys(bValue as string, aValue as string);
+      } else {
+        if (aValue < bValue) return order === "asc" ? -1 : 1;
+        if (aValue > bValue) return order === "asc" ? 1 : -1;
+        return 0;
+      }
     });
     setSortColumn(column);
     setSortOrder(order);
