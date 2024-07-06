@@ -17,6 +17,7 @@ permissions:
   scopes:
     - read:jira-work
     - write:jira-work
+    - delete:issue-link:jira
 app:
   runtime:
     name: nodejs18.x
