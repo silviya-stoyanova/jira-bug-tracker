@@ -54,7 +54,7 @@ const BugTracker: React.FC = () => {
         setIsLoading(false);
       })
       .catch((error: Error): void => {
-        console.error(ERROR_MESSAGES.failedToGetRelatedBugs, error);
+        console.error(ERROR_MESSAGES.failedFetchingRelatedBugs, error);
         setIsLoading(false);
       });
   }, []);
@@ -99,8 +99,8 @@ const BugTracker: React.FC = () => {
         setError("");
       }
     } catch (err) {
-      console.error(`${ERROR_MESSAGES.errorDeletingLink}: ${err}`);
-      setError(ERROR_MESSAGES.errorDeletingLink);
+      console.error(`${ERROR_MESSAGES.failedDeletingLink}: ${err}`);
+      setError(ERROR_MESSAGES.failedDeletingLink);
     }
   };
 

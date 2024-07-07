@@ -30,6 +30,6 @@ export const StatusOrder = {
 
 export const ERROR_MESSAGES = {
   failedToDeleteLink: "Failed to delete link",
-  errorDeletingLink: "Error deleting link",
-  failedToGetRelatedBugs: "Failed to get related bugs",
+  failedDeletingLink: "Failed to delete link",
+  failedFetchingRelatedBugs: "Failed fetching related bugs",
 };
