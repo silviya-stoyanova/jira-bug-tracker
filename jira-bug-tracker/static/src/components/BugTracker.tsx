@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { invoke } from "@forge/bridge";
+import { Columns, ERROR_MESSAGES, Order } from "../utils/constants";
+import { compareIssueKeys, getColumnValue } from "../utils/utils";
 
-import { events, invoke } from "@forge/bridge";
-import { PriorityOrder } from "../utils/constants";
-
-interface Bug {
+export interface Bug {
   id: string;
   key: string;
   fields: {
@@ -22,84 +22,62 @@ interface Bug {
   issueLinkId: string;
 }
 
-interface DeleteIssueLinkResponse {
+interface SuccessfulDeleteIssueLinkResponse {
   size?: number;
   timeout?: number;
+}
+
+interface ErrorDeleteIssueLinkResponse {
   success?: boolean;
   message?: string;
 }
+
+type DeleteIssueLinkResponse =
+  | SuccessfulDeleteIssueLinkResponse
+  | ErrorDeleteIssueLinkResponse;
 
 const BugTracker: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [linkedBugs, setLinkedBugs] = useState<Bug[]>([]);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortOrder, setSortOrder] = useState<Order>(Order.Asc);
   const [error, setError] = useState<string>("");
-
-  const handleFetchSuccess = (data: Bug[]): void => {
-    setLinkedBugs(data);
-    setIsLoading(false);
-  };
-
-  const handleFetchError = (error: Error): void => {
-    console.error("Failed to get related bugs", error);
-    setIsLoading(false);
-  };
 
   const fetchedBugs = async (): Promise<Bug[]> => {
     return await invoke("getLinkedBugs");
   };
 
   useEffect(() => {
-    fetchedBugs().then(handleFetchSuccess).catch(handleFetchError);
+    fetchedBugs()
+      .then((data: Bug[]): void => {
+        setLinkedBugs(data);
+        setIsLoading(false);
+      })
+      .catch((error: Error): void => {
+        console.error(ERROR_MESSAGES.failedToGetRelatedBugs, error);
+        setIsLoading(false);
+      });
   }, []);
 
-  const getColumnValue = (bug: Bug, column: string) => {
-    switch (column) {
-      case "key":
-        return bug.key;
-      case "summary":
-        return bug.fields.summary;
-      case "created":
-        return new Date(bug.fields.created);
-      case "assignee":
-        return bug.fields.assignee
-          ? bug.fields.assignee.displayName
-          : "Unassigned";
-      case "status":
-        return bug.fields.status.name;
-      case "priority":
-        const priorityOrder =
-          PriorityOrder[bug.fields.priority.name as keyof typeof PriorityOrder];
-        return priorityOrder;
-      default:
-        return "";
-    }
-  };
+  const handleSort = (column: Columns) => {
+    const order =
+      sortColumn === column && sortOrder === Order.Asc ? Order.Desc : Order.Asc;
 
-  const compareIssueKeys = (keyA: string, keyB: string): number => {
-    const numberA = parseInt(keyA.split("-")[1]);
-    const numberB = parseInt(keyB.split("-")[1]);
-
-    return numberA - numberB;
-  };
-
-  const handleSort = (column: string) => {
-    const order = sortColumn === column && sortOrder === "asc" ? "desc" : "asc";
     const sortedBugs = [...linkedBugs].sort((a, b) => {
       const aValue = getColumnValue(a, column);
       const bValue = getColumnValue(b, column);
 
-      if (column === "key") {
-        return order === "asc"
+      if (column === Columns.Key) {
+        return order === Order.Asc
           ? compareIssueKeys(aValue as string, bValue as string)
           : compareIssueKeys(bValue as string, aValue as string);
       } else {
-        if (aValue < bValue) return order === "asc" ? -1 : 1;
-        if (aValue > bValue) return order === "asc" ? 1 : -1;
+        if (aValue < bValue) return order === Order.Asc ? -1 : 1;
+        if (aValue > bValue) return order === Order.Asc ? 1 : -1;
         return 0;
       }
     });
+
     setSortColumn(column);
     setSortOrder(order);
     setLinkedBugs(sortedBugs);
@@ -107,21 +85,22 @@ const BugTracker: React.FC = () => {
 
   const deleteLink = async (issueLinkId: string) => {
     try {
-      const res: DeleteIssueLinkResponse = await invoke("deleteIssueLink", {
-        issueLinkId,
-      });
+      const response: DeleteIssueLinkResponse = await invoke(
+        "deleteIssueLink",
+        { issueLinkId }
+      );
 
-      if (!res.message) {
+      if ("message" in response) {
+        setError(response.message || ERROR_MESSAGES.failedToDeleteLink);
+      } else {
         setLinkedBugs(
           linkedBugs.filter((bug) => bug.issueLinkId !== issueLinkId)
         );
         setError("");
-      } else {
-        setError(res.message || "Failed to delete link");
       }
     } catch (err) {
-      console.error("Error deleting link:", err);
-      setError("Error deleting link");
+      console.error(`${ERROR_MESSAGES.errorDeletingLink}: ${err}`);
+      setError(ERROR_MESSAGES.errorDeletingLink);
     }
   };
 
@@ -131,16 +110,16 @@ const BugTracker: React.FC = () => {
         "Loading.."
       ) : !!linkedBugs.length ? (
         <>
-          {error && <div className="error">{error}</div>}
+          {error && <p className="error">{error}</p>}
           <table>
             <thead>
               <tr>
-                <th onClick={() => handleSort("key")}>Key</th>
-                <th onClick={() => handleSort("summary")}>Summary</th>
-                <th onClick={() => handleSort("created")}>Create Date</th>
-                <th onClick={() => handleSort("assignee")}>Assignee</th>
-                <th onClick={() => handleSort("status")}>Status</th>
-                <th onClick={() => handleSort("priority")}>Priority</th>
+                <th onClick={() => handleSort(Columns.Key)}>Key</th>
+                <th onClick={() => handleSort(Columns.Summary)}>Summary</th>
+                <th onClick={() => handleSort(Columns.Created)}>Create Date</th>
+                <th onClick={() => handleSort(Columns.Assignee)}>Assignee</th>
+                <th onClick={() => handleSort(Columns.Status)}>Status</th>
+                <th onClick={() => handleSort(Columns.Priority)}>Priority</th>
                 <th>Actions</th>
               </tr>
             </thead>
