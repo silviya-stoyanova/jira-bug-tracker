@@ -1,48 +1,9 @@
 import api, { APIResponse, route } from "@forge/api";
 import Resolver from "@forge/resolver";
+import { IssueTypes } from "./constants";
+import { Error, IssueData, LinkedBug } from "./interfaces";
 
 const resolver = new Resolver();
-
-interface IssueLink {
-  id: string;
-  outwardIssue?: {
-    key: string;
-  };
-  inwardIssue?: {
-    key: string;
-  };
-}
-
-interface IssueFields {
-  summary: string;
-  created: string;
-  assignee: {
-    displayName: string;
-  } | null;
-  status: {
-    name: string;
-  };
-  priority: {
-    name: string;
-  };
-  issuelinks: IssueLink[];
-}
-
-interface IssueData {
-  fields: IssueFields;
-}
-
-interface LinkedBug {
-  id: string;
-  key: string;
-  fields: IssueFields;
-  issueLinkId: string;
-}
-
-interface Error {
-  success: boolean;
-  message: string;
-}
 
 resolver.define("getLinkedBugs", async (req): Promise<LinkedBug[] | Error> => {
   try {
@@ -52,12 +13,17 @@ resolver.define("getLinkedBugs", async (req): Promise<LinkedBug[] | Error> => {
       .requestJira(route`/rest/api/3/issue/${issueKey}?fields=issuelinks`);
     const data: IssueData = await response.json();
 
-    const linkedIssues = data.fields.issuelinks.map((link) => ({
-      issueKey: link.outwardIssue
-        ? link.outwardIssue.key
-        : link.inwardIssue?.key,
-      issueLinkId: link.id,
-    }));
+    const linkedIssues = data.fields.issuelinks
+      .map((link) => ({
+        issueKey: link.outwardIssue
+          ? link.outwardIssue.key
+          : link.inwardIssue?.key,
+        issueLinkId: link.id,
+        issueType:
+          link.outwardIssue?.fields?.issuetype?.name ||
+          link.inwardIssue?.fields?.issuetype?.name,
+      }))
+      .filter((link) => link.issueType === IssueTypes.Bug);
 
     const linkedBugs: LinkedBug[] = [];
 
