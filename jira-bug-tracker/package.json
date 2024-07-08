@@ -4,12 +4,17 @@
   "main": "index.js",
   "license": "MIT",
   "private": true,
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc"
+  },
   "devDependencies": {
-    "eslint": "^8.56.0",
-    "eslint-plugin-react-hooks": "^4.6.0"
+    "@types/node": "^20.14.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.3"
   },
   "dependencies": {
-    "@forge/resolver": "1.5.35",
-    "@forge/api": "3.7.1"
+    "@forge/api": "3.7.1",
+    "@forge/resolver": "1.5.35"
   }
 }
